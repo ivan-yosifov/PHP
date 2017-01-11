@@ -1,0 +1,364 @@
+PDO (PHP Data Objets) - extension for accessing databases in PHP
+----------------------------------------------------------------
+
+1) Get a list of all available drivers
+***************************************
+  var_dump(PDO::getAvailableDrivers());
+
+2) Connect to MySQL database (persistent connection - connection is cached)
+***************************************
+
+  define("DSN", "mysql:host=localhost;dbname=library");
+  define("USERNAME", "root");
+  define("PASSWORD", "pass");
+  $options = array(PDO::ATTR_PERSISTENT => true);
+
+  try{
+    $conn = new PDO(DSN, USERNAME, PASSWORD, $options);
+
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    echo "connection successful";
+  }catch(PDOException $ex){  
+    echo 'A databse error occurred: ' . $ex->getMessage(); // development
+    // echo 'A database error occurred '; // production code
+  }
+
+3) Create table with PDO
+***************************************
+
+  include_once 'connect.php';
+
+  $table = "CREATE TABLE IF NOT EXISTS books (
+            id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
+            name VARCHAR(25) NOT NULL UNIQUE,
+            description VARCHAR(255) NOT NULL,
+            created_at TIMESTAMP)";
+  try{
+    $conn->query($table);
+    echo "<br>Table created";
+  }catch(PDOException $ex){
+    echo "<br>An error occurred: " . $ex->getMessage();
+  }
+
+4) Create
+***************************************
+
+  include_once 'connect.php';
+
+  $insertQuery = "INSERT INTO books(name, description, created_at)
+    VALUES('Introduction to Java', 'Learn all about Java', now())";
+
+  try{
+    $result = $conn->exec($insertQuery);
+    echo "$result record inserted <br>";    
+  }catch(PDOException $ex){
+    echo "An error occurred: " . $ex->getMessage();
+  }
+
+5) Read 
+***************************************
+
+  include_once 'connect.php';
+
+  $selectQuery = "SELECT * FROM books";
+
+  try{
+    $stmt = $conn->query($selectQuery);
+
+    while($row = $stmt->fetch()){
+      echo "Name: " . $row['name'] . " - " . $row['description'] . '<br>';
+    }
+  }catch(PDOException $ex){
+    echo "An error occurred: " . $ex->getMessage();
+  }
+
+6) Update 
+***************************************
+  include_once 'connect.php';
+
+  $updateQuery = "UPDATE books SET name = 'Introduction to Java 2' WHERE id = 1";
+
+  try{
+    $result = $conn->exec($updateQuery);
+    echo "$result record updated <br>";
+  }catch(PDOException $ex){
+    echo "An error occurred: " . $ex->getMessage();
+  }
+
+7) Delete 
+***************************************
+
+  include_once 'connect.php';
+
+  $deleteQuery = "DELETE FROM books WHERE id = 1";
+
+  try{
+    $result = $conn->exec($deleteQuery);
+    echo "$result record deleted <br>";
+  }catch(PDOException $ex){
+    echo "An error occurred: " . $ex->getMessage();
+  }
+
+8) Prepared Statements with named parameters 
+***************************************
+
+  include_once 'connect.php';
+
+  $name = "PHP PDO";
+  $description = "Build a basic task list";
+
+  try{
+    $insertQuery = "INSERT INTO books (name, description, created_at)
+      VALUES(:name, :description, now())";
+
+    // prepare the query
+    $stmt = $conn->prepare($insertQuery);
+
+    // execute the statement
+    $stmt->execute(array(":name" => $name, ":description" => $description));
+
+    echo "Record created";  
+  }catch(PDOException $ex){
+    echo "An error occurred: " . $ex->getMessage();
+  }
+
+9) Prepared Statements with unnamed parameters 
+***************************************
+
+  include_once 'connect.php';
+
+  $name = "PHP PDO 2";
+  $description = "Build a basic task list 2";
+
+  try{
+    $insertQuery = "INSERT INTO books (name, description, created_at)
+      VALUES(?, ?, now())";
+
+    // prepare the query
+    $stmt = $conn->prepare($insertQuery);
+
+    // execute the statement
+    $stmt->execute(array($name, $description));
+
+    echo "Record created";  
+  }catch(PDOException $ex){
+    echo "An error occurred: " . $ex->getMessage();
+  }
+
+10) Binding parameters to Prepared Statements
+***************************************
+
+  include_once 'connect.php';
+
+  try{
+    // prepare the query
+    $stmt = $conn->prepare("INSERT INTO books (name, description, created_at)
+      VALUES(:name, :description, now())");
+
+    // execute the statement
+    $stmt->bindParam(":name", $name);
+    $stmt->bindParam(":description", $description);
+
+    // crate first record
+    $name = "Objects and Patterns";
+    $description = "Software crafting";
+    $stmt->execute();
+
+    // crate second record
+    $name = "Objects and Patterns 1";
+    $description = "Software crafting 1";
+    $stmt->execute();
+    
+    echo "Record created";  
+  }catch(PDOException $ex){
+    echo "An error occurred: " . $ex->getMessage();
+  }
+
+11) Get last inserted id
+***************************************
+
+  include_once 'connect.php';
+
+  $name = "Learn Bootstrap";
+  $description = "Front-end framework";
+
+  try{
+    // build the query
+    $insertQuery = "INSERT INTO books (name, description, created_at)
+      VALUES(:name, :description, now())";
+
+    // prepare the statement
+    $stmt = $conn->prepare($insertQuery);
+
+    // execute the statement
+    $stmt->execute(array(":name"=>$name, ":description"=>$description));
+
+    echo "Record with ID: " . $conn->lastInsertId() . " created.";
+    
+  }catch(PDOException $ex){
+    echo "An error occurred: " . $ex->getMessage();
+  }
+
+12) Number of affected rows
+***************************************
+
+  include_once 'connect.php';
+
+  $updateQuery = "UPDATE books SET name = :name, description = :description WHERE id = :id";
+
+  try{
+    $stmt = $conn->prepare($updateQuery);
+
+    $stmt->execute(array(":name"=>"Python for newbies", ":description"=>"Very good", ":id"=>4));
+
+    echo $stmt->rowCount() . " record updated";
+  }catch(PDOException $ex){
+    echo "An error occurred: " . $ex->getMessage();
+  }
+
+13) Transactions
+***************************************
+  include_once 'connect.php';
+
+  try{
+    $name = "My Book";
+    $description = "My book description";
+
+    // begin transaction
+    $conn->beginTransaction();
+
+    $sql1 = "INSERT INTO books (name,description, created_at)
+      VALUES(:name, :description, now())";
+    $stmt = $conn->prepare($sql1);
+    $stmt->execute(array(":name"=>$name, ":description"=>$description));
+    if($stmt){
+      echo "record inserted";
+    }  
+
+    $sql2 = "DELETE FROM books where id = :id";
+    $stmt = $conn->prepare($sql2);
+    $stmt->execute(array(":id"=>6));
+
+    $conn->commit(); // make changes permanent
+
+    echo "Operation succeeded";
+
+  }catch(PDOException $ex){
+    $conn->rollBack(); // if error, roll back transaction
+    echo "An error occurred: " . $ex->getMessage();
+  }
+
+14) PDO fetching modes
+***************************************
+
+  $stmt = $conn->query($selectQuery);
+
+  $stmt->setFetchMode(PDO::FETCH_OBJ); // set fetch mode
+
+  // pass fetch mode as constant
+  while($row = $stmt->fetch(PDO::FETCH_BOTH)){ // default
+    echo "Name: " . $row['name'] . " - " . $row['description'] . '<br>';
+    echo "Name: " . $row[1] . " - " . $row[2] . '<br>';
+  }
+------------------------------------------
+  while($row = $stmt->fetch(PDO::FETCH_ASSOC)){ 
+    echo "Name: " . $row['name'] . " - " . $row['description'] . '<br>';
+  }
+------------------------------------------
+  while($row = $stmt->fetch(PDO::FETCH_NUM)){
+    echo "Name: " . $row[1] . " - " . $row[2] . '<br>';
+  }
+------------------------------------------
+  while($row = $stmt->fetch(PDO::FETCH_OBJ)){
+    echo "Name: " . $row->name . " - " . $row->description . '<br>';
+  }
+------------------------------------------
+  class Book{
+    public $name;
+    public $description;
+  }
+  include_once 'Book.php';
+
+  $stmt->setFetchMode(PDO::FETCH_CLASS, "Book");
+
+  while($row = $stmt->fetch()){
+    echo "Name: " . $row->name . " - " . $row->description . '<br>';
+  }
+------------------------------------------
+
+15) Send data from form to database
+***************************************
+  index.php
+  ---------
+  <form id="create-task" method="post">
+    <div class="form-group">
+      <label for="name" class="col-md-2 control-label">Name</label>
+      <div class="col-md-10">
+        <input type="text" class="form-control" name="name" id="name">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="description" class="col-md-2 control-label">Description</label>
+      <div class="col-md-10">
+        <textarea class="form-control" rows="3" name="description" id="description"></textarea>
+      </div>
+    </div>
+
+    <button type="submit" name="createBtn" class="btn btn-success pull-right">
+      Create Task <i class="fa fa-plus"></i>
+    </button>
+  </form>
+
+  app.js
+  ------
+  $(document).ready(function(){
+    $('form#create-task').submit(function(event){
+      event.preventDefault();
+
+      var form = $(this);        
+      var formData = form.serialize();
+
+      $.ajax({
+        url: 'create.php',
+        method: 'POST',
+        data: formData,
+        success: function(data){        
+          $('#ajax_msg').css('display', 'block').delay(3000).slideUp(300).html(data);
+          document.getElementById('create-task').reset();
+        }
+      });
+    });
+  });
+
+  create.php
+  ----------
+  include_once 'connect.php';
+
+  if(isset($_POST['name']) && isset($_POST['description'])){
+    $name = $_POST['name'];
+    $description = $_POST['description'];
+
+    try{
+      $createQuery = "INSERT INTO tasks(name, description, created_at)
+        VALUES(:name, :description, now())";
+
+      $stmt = $conn->prepare($createQuery);
+      $stmt->execute(array(":name"=>$name, ":description"=>$description));
+
+      if($stmt){
+        echo "Record Inserted";
+      }
+
+    }catch(PDOException $ex){
+      echo "An error occurred: " . $ex->getMessage();
+    }
+  }
+
+
+16) Load php file with jQuery
+***************************************
+  $('#task-list').load('read.php');
+
+
